@@ -1,6 +1,6 @@
-// 📦 Dependencies 
+/// 📦 Dependencies
 const express = require('express');
-const cors = require('cors');
+const cors = require('cors'); // ✅ Only once
 const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -15,15 +15,13 @@ const fs = require('fs');
 // ✉️ Email Templates
 const {
   generateApplicationEmail,
-  generateWithdrawalEmail
+  generateWithdrawalEmail,
 } = require('./emailNotifications');
 
 // 🚀 App Initialization
 const app = express();
 
 // ✅ CORS Setup for Render Frontend
-const cors = require('cors');
-
 const allowedOrigins = ['https://bursary-frontend.onrender.com'];
 
 const corsOptions = {
@@ -36,13 +34,11 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Handle preflight
-
-
+app.options('*', cors(corsOptions)); // ✅ Handle preflight
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -82,22 +78,31 @@ try {
 }
 
 const db = mysql.createPool({
-  host: process.env.DB_HOST,       // giftbursarydb01.mysql.database.azure.com
-  user: process.env.DB_USER,       // mpho@giftbursarydb01
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,   // bursarydb
+  database: process.env.DB_NAME,
   port: 3306,
   ssl: sslConfig,
 });
 
-// ✅ Sanity Check Endpoint
+// ✅ Sanity Check
 app.get('/', (req, res) => {
   res.send('API is running ✅');
 });
 
 // 📥 Register Student
 app.post('/api/register/student', async (req, res) => {
-  const { full_name, email, password, phone, institution, field_of_study, year_of_study } = req.body;
+  const {
+    full_name,
+    email,
+    password,
+    phone,
+    institution,
+    field_of_study,
+    year_of_study,
+  } = req.body;
+
   try {
     const hashed = await bcrypt.hash(password, 10);
     db.query(
@@ -105,7 +110,10 @@ app.post('/api/register/student', async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [full_name, email, hashed, phone, institution, field_of_study, year_of_study],
       (err) => {
-        if (err) return res.status(500).json({ message: 'Student already exists or DB error', error: err });
+        if (err)
+          return res
+            .status(500)
+            .json({ message: 'Student already exists or DB error', error: err });
         res.json({ message: 'Student registered successfully' });
       }
     );
@@ -114,8 +122,7 @@ app.post('/api/register/student', async (req, res) => {
   }
 });
 
-
-// 🔐 Login
+// 🔐 Login Route
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password, role } = req.body;
@@ -145,7 +152,9 @@ app.post('/api/login', async (req, res) => {
         return res.status(401).json({ error: 'Invalid password' });
       }
 
-      const token = jwt.sign({ id: user.id, role: role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+      const token = jwt.sign({ id: user.id, role }, JWT_SECRET, {
+        expiresIn: '1h',
+      });
 
       res.json({ token, user });
     });
@@ -154,7 +163,6 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 // 👤 Get Student Profile
 app.get('/api/students/:id', (req, res) => {
