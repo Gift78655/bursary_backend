@@ -1,5 +1,6 @@
-/// 📦 Dependencies
+// 📦 Dependencies
 const express = require('express');
+const cors = require('cors'); // ✅ Only once
 const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
