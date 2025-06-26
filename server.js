@@ -84,30 +84,45 @@ app.post('/api/register/student', async (req, res) => {
 
 
 // 🔐 Login
-app.post('/api/login', (req, res) => {
-  const { email, password, role } = req.body;
-  const table = role === 'admin' ? 'admins' : 'students';
+app.post('/api/login', async (req, res) => {
+  try {
+    console.log('Incoming login payload:', req.body);
 
-  db.query(`SELECT * FROM ${table} WHERE email = ?`, [email], async (err, results) => {
-    if (err) return res.status(500).json({ message: 'Database error', error: err });
-    if (results.length === 0) return res.status(401).json({ message: 'Email not found' });
+    const { email, password, role } = req.body;
 
-    const user = results[0];
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return res.status(401).json({ message: 'Incorrect password' });
+    if (!email || !password || !role) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
 
-    const idField = role === 'admin' ? 'admin_id' : 'student_id';
-    const token = jwt.sign({ id: user[idField], role }, JWT_SECRET, { expiresIn: '2h' });
-
-    res.json({
-      token,
-      user: {
-        ...user,
-        [idField]: user[idField] // ⬅️ Ensures frontend sees admin_id or student_id explicitly
+    const query = 'SELECT * FROM users WHERE email = ? AND role = ?';
+    db.query(query, [email, role], async (err, results) => {
+      if (err) {
+        console.error('DB error:', err);
+        return res.status(500).json({ error: 'Database error' });
       }
+
+      if (results.length === 0) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      const user = results[0];
+      const isMatch = await bcrypt.compare(password, user.password);
+
+      if (!isMatch) {
+        return res.status(401).json({ error: 'Invalid password' });
+      }
+
+      const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+      res.json({ token, user });
     });
-  });
+
+  } catch (error) {
+    console.error('Login failed:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
+
 
 
 // 👤 Get Student Profile
