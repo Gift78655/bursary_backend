@@ -21,7 +21,14 @@ const {
 
 // 🚀 App Init
 const app = express();
-app.use(cors());
+const allowedOrigins = ['https://bursary-frontend.onrender.com'];
+
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -47,15 +54,19 @@ const sendEmail = async (to, subject, html) => {
 };
 
 // 🛢️ Database Connection
+const certPath = path.join(__dirname, 'DigiCertGlobalRootCA.crt.pem');
+const sslOptions = fs.existsSync(certPath)
+  ? { ca: fs.readFileSync(certPath) }
+  : false;
+
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  ssl: {
-    ca: fs.readFileSync(path.join(__dirname, 'DigiCertGlobalRootCA.crt.pem'))
-  }
+  ssl: sslOptions,
 });
+
 
 // ✅ Sanity check
 app.get('/', (req, res) => {
