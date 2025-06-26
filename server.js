@@ -86,16 +86,16 @@ app.post('/api/register/student', async (req, res) => {
 // 🔐 Login
 app.post('/api/login', async (req, res) => {
   try {
-    console.log('Incoming login payload:', req.body);
-
     const { email, password, role } = req.body;
 
     if (!email || !password || !role) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    const query = 'SELECT * FROM users WHERE email = ? AND role = ?';
-    db.query(query, [email, role], async (err, results) => {
+    const table = role === 'admin' ? 'users' : 'students';
+    const query = `SELECT * FROM ${table} WHERE email = ?`;
+
+    db.query(query, [email], async (err, results) => {
       if (err) {
         console.error('DB error:', err);
         return res.status(500).json({ error: 'Database error' });
@@ -106,23 +106,22 @@ app.post('/api/login', async (req, res) => {
       }
 
       const user = results[0];
-      const isMatch = await bcrypt.compare(password, user.password);
+      const passwordField = role === 'admin' ? user.password : user.password_hash;
+      const isMatch = await bcrypt.compare(password, passwordField);
 
       if (!isMatch) {
         return res.status(401).json({ error: 'Invalid password' });
       }
 
-      const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+      const token = jwt.sign({ id: user.id, role: role }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
       res.json({ token, user });
     });
-
   } catch (error) {
     console.error('Login failed:', error.message);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 
 // 👤 Get Student Profile
