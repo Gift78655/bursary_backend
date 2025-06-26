@@ -7,12 +7,12 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-/// 📂 Document Upload
+// 📂 Document Upload
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-/// ✉️ Email Templates
+// ✉️ Email Templates
 const {
   generateApplicationEmail,
   generateWithdrawalEmail
@@ -21,10 +21,10 @@ const {
 // 🚀 App Initialization
 const app = express();
 
-// ✅ CORS Setup for Frontend Domain
+// ✅ CORS Setup for Render Frontend
 const allowedOrigins = ['https://bursary-frontend.onrender.com'];
 
-const corsOptions = {
+app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -35,17 +35,15 @@ const corsOptions = {
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
-};
-
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Handle preflight
+}));
+app.options('*', cors()); // Preflight
 
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// 📧 Nodemailer Transport
+// 🛠️ Nodemailer Transport
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -65,14 +63,26 @@ const sendEmail = async (to, subject, html) => {
 
 // 🛢️ MySQL Azure DB Connection (with optional SSL)
 const certPath = path.join(__dirname, 'DigiCertGlobalRootCA.crt.pem');
+let sslConfig = undefined;
+
+try {
+  if (fs.existsSync(certPath)) {
+    sslConfig = { ca: fs.readFileSync(certPath) };
+    console.log('✅ SSL certificate loaded for Azure MySQL');
+  } else {
+    console.warn('⚠️ SSL certificate not found. Proceeding without SSL.');
+  }
+} catch (err) {
+  console.error('❌ Error reading SSL cert:', err);
+}
 
 const db = mysql.createPool({
-  host: process.env.DB_HOST,                    // e.g. giftbursarydb01.mysql.database.azure.com
-  user: process.env.DB_USER,                    // e.g. mpho@giftbursarydb01
-  password: process.env.DB_PASSWORD,            // your password
-  database: process.env.DB_NAME,                // e.g. bursarydb
+  host: process.env.DB_HOST,       // giftbursarydb01.mysql.database.azure.com
+  user: process.env.DB_USER,       // mpho@giftbursarydb01
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,   // bursarydb
   port: 3306,
-  ssl: fs.existsSync(certPath) ? { ca: fs.readFileSync(certPath) } : undefined,
+  ssl: sslConfig,
 });
 
 // ✅ Sanity Check Endpoint
