@@ -60,7 +60,7 @@ const sendEmail = async (to, subject, html) => {
   });
 };
 
-// 🛢️ Database Connection
+// 🛢️ Database Connection with correct Render path to secret file
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -68,7 +68,7 @@ const db = mysql.createPool({
   database: process.env.DB_NAME,
   port: process.env.DB_PORT || 3306,
   ssl: {
-    ca: fs.readFileSync(path.resolve(__dirname, process.env.DB_SSL_CERT))
+    ca: fs.readFileSync('/etc/secrets/DigiCertGlobalRootCA.crt.pem')  // ✅ Updated for Render secret path
   }
 });
 
