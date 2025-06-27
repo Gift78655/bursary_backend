@@ -7,6 +7,11 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
+
+const router = require('./router');
+app.use('/api/test', router); // this will respond to: yourdomain.com/api/test
+
+
 // 📂 Document Upload
 const multer = require('multer');
 const path = require('path');
