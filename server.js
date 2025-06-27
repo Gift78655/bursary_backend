@@ -1,6 +1,6 @@
 // 📦 Dependencies
 const express = require('express');
-const cors = require('cors'); // ✅ Only once
+const cors = require('cors');
 const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -38,7 +38,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // ✅ Handle preflight
+app.options('*', cors(corsOptions)); // Handle preflight
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -62,8 +62,8 @@ const sendEmail = async (to, subject, html) => {
   });
 };
 
-// 🛢️ MySQL Azure DB Connection (with optional SSL)
-const certPath = path.join(__dirname, 'DigiCertGlobalRootCA.crt.pem');
+// 🛢️ MySQL Azure DB Connection (with SSL)
+const certPath = path.resolve(__dirname, process.env.DB_SSL_CERT || '');
 let sslConfig = undefined;
 
 try {
@@ -79,10 +79,10 @@ try {
 
 const db = mysql.createPool({
   host: process.env.DB_HOST,
-  user: process.env.DB_USER,
+  user: process.env.DB_USER, // e.g., mpho@giftbursarydb01
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  port: 3306,
+  port: process.env.DB_PORT || 3306,
   ssl: sslConfig,
 });
 
@@ -90,6 +90,7 @@ const db = mysql.createPool({
 app.get('/', (req, res) => {
   res.send('API is running ✅');
 });
+
 
 // 📥 Register Student
 app.post('/api/register/student', async (req, res) => {
