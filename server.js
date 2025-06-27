@@ -55,7 +55,16 @@ const sendEmail = async (to, subject, html) => {
   });
 };
 
-// 🛢 Database Connection with correct Render path to secret file
+// ✅ SSL Path Selection
+let sslCAPath;
+const renderSSLPath = '/etc/secrets/DigiCertGlobalRootCA.crt.pem';
+if (fs.existsSync(renderSSLPath)) {
+  sslCAPath = renderSSLPath;
+} else {
+  sslCAPath = path.resolve(__dirname, process.env.DB_SSL_CERT);
+}
+
+// 🛢 Database Connection with fallback SSL path
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -63,7 +72,7 @@ const db = mysql.createPool({
   database: process.env.DB_NAME,
   port: process.env.DB_PORT || 3306,
   ssl: {
-    ca: fs.readFileSync('/etc/secrets/DigiCertGlobalRootCA.crt.pem') // ✅ Updated for Render secret path
+    ca: fs.readFileSync(sslCAPath)
   }
 });
 
@@ -77,7 +86,7 @@ try {
   const routes = require('./router.js');
   app.use(routes);
 } catch (error) {
-  console.error('Error loading router:', error);
+  console.error('❌ Error loading router:', error);
 }
 
 // ✅ Start Server
