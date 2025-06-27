@@ -8,10 +8,6 @@ const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 
-const router = require('./router');
-app.use('/api/test', router); // this will respond to: yourdomain.com/api/test
-
-
 // 📂 Document Upload
 const multer = require('multer');
 const path = require('path');
@@ -129,6 +125,7 @@ app.post('/api/register/student', async (req, res) => {
 });
 
 // 🔐 Login Route
+// 🔐 Login Route (fixed: use correct table names and id fields)
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password, role } = req.body;
@@ -137,7 +134,10 @@ app.post('/api/login', async (req, res) => {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    const table = role === 'admin' ? 'users' : 'students';
+    const table = role === 'admin' ? 'admins' : 'students';
+    const idField = role === 'admin' ? 'admin_id' : 'student_id';
+    const passwordField = role === 'admin' ? 'password_hash' : 'password_hash';
+
     const query = `SELECT * FROM ${table} WHERE email = ?`;
 
     db.query(query, [email], async (err, results) => {
@@ -151,14 +151,13 @@ app.post('/api/login', async (req, res) => {
       }
 
       const user = results[0];
-      const passwordField = role === 'admin' ? user.password : user.password_hash;
-      const isMatch = await bcrypt.compare(password, passwordField);
+      const isMatch = await bcrypt.compare(password, user[passwordField]);
 
       if (!isMatch) {
         return res.status(401).json({ error: 'Invalid password' });
       }
 
-      const token = jwt.sign({ id: user.id, role }, JWT_SECRET, {
+      const token = jwt.sign({ id: user[idField], role }, JWT_SECRET, {
         expiresIn: '1h',
       });
 
@@ -169,6 +168,7 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 // 👤 Get Student Profile
 app.get('/api/students/:id', (req, res) => {
