@@ -77,9 +77,11 @@ app.get('/', (req, res) => {
   res.send('API is running ✅');
 });
 
+
 // ⬇️ Mount All Routes
-const routes = require('./router');
+const routes = require('./router.js'); // ✅ Explicit .js extension for Render compatibility
 app.use(routes);
+
 
 // ✅ Start Server
 const PORT = process.env.PORT || 5000;
