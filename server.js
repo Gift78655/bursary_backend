@@ -1,4 +1,4 @@
-// 📦 Dependencies
+// 📦 Dependencies 
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2');
@@ -7,22 +7,20 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-
-// 📂 Document Upload
+/// 📂 Document Upload
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// ✉️ Email Templates
 const {
   generateApplicationEmail,
-  generateWithdrawalEmail,
+  generateWithdrawalEmail
 } = require('./emailNotifications');
 
-// 🚀 App Initialization
+// 🚀 App Init
 const app = express();
 
-// ✅ CORS Setup for Render Frontend
+// ✅ Optimized CORS for Render
 const allowedOrigins = ['https://bursary-frontend.onrender.com'];
 
 const corsOptions = {
@@ -35,11 +33,10 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Handle preflight
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -63,48 +60,27 @@ const sendEmail = async (to, subject, html) => {
   });
 };
 
-// 🛢️ MySQL Azure DB Connection (with SSL)
-const certPath = path.resolve(__dirname, process.env.DB_SSL_CERT || '');
-let sslConfig = undefined;
-
-try {
-  if (fs.existsSync(certPath)) {
-    sslConfig = { ca: fs.readFileSync(certPath) };
-    console.log('✅ SSL certificate loaded for Azure MySQL');
-  } else {
-    console.warn('⚠️ SSL certificate not found. Proceeding without SSL.');
-  }
-} catch (err) {
-  console.error('❌ Error reading SSL cert:', err);
-}
-
+// 🛢️ Database Connection
 const db = mysql.createPool({
   host: process.env.DB_HOST,
-  user: process.env.DB_USER, // e.g., mpho@giftbursarydb01
+  user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   port: process.env.DB_PORT || 3306,
-  ssl: sslConfig,
+  ssl: {
+    ca: fs.readFileSync(path.resolve(__dirname, process.env.DB_SSL_CERT))
+  }
 });
 
-// ✅ Sanity Check
+
+// ✅ Sanity check
 app.get('/', (req, res) => {
   res.send('API is running ✅');
 });
 
-
 // 📥 Register Student
 app.post('/api/register/student', async (req, res) => {
-  const {
-    full_name,
-    email,
-    password,
-    phone,
-    institution,
-    field_of_study,
-    year_of_study,
-  } = req.body;
-
+  const { full_name, email, password, phone, institution, field_of_study, year_of_study } = req.body;
   try {
     const hashed = await bcrypt.hash(password, 10);
     db.query(
@@ -112,10 +88,7 @@ app.post('/api/register/student', async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [full_name, email, hashed, phone, institution, field_of_study, year_of_study],
       (err) => {
-        if (err)
-          return res
-            .status(500)
-            .json({ message: 'Student already exists or DB error', error: err });
+        if (err) return res.status(500).json({ message: 'Student already exists or DB error', error: err });
         res.json({ message: 'Student registered successfully' });
       }
     );
@@ -124,49 +97,31 @@ app.post('/api/register/student', async (req, res) => {
   }
 });
 
-// 🔐 Login Route
-// 🔐 Login Route (fixed: use correct table names and id fields)
-app.post('/api/login', async (req, res) => {
-  try {
-    const { email, password, role } = req.body;
 
-    if (!email || !password || !role) {
-      return res.status(400).json({ error: 'All fields are required' });
-    }
+// 🔐 Login
+app.post('/api/login', (req, res) => {
+  const { email, password, role } = req.body;
+  const table = role === 'admin' ? 'admins' : 'students';
 
-    const table = role === 'admin' ? 'admins' : 'students';
+  db.query(`SELECT * FROM ${table} WHERE email = ?`, [email], async (err, results) => {
+    if (err) return res.status(500).json({ message: 'Database error', error: err });
+    if (results.length === 0) return res.status(401).json({ message: 'Email not found' });
+
+    const user = results[0];
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) return res.status(401).json({ message: 'Incorrect password' });
+
     const idField = role === 'admin' ? 'admin_id' : 'student_id';
-    const passwordField = role === 'admin' ? 'password_hash' : 'password_hash';
+    const token = jwt.sign({ id: user[idField], role }, JWT_SECRET, { expiresIn: '2h' });
 
-    const query = `SELECT * FROM ${table} WHERE email = ?`;
-
-    db.query(query, [email], async (err, results) => {
-      if (err) {
-        console.error('DB error:', err);
-        return res.status(500).json({ error: 'Database error' });
+    res.json({
+      token,
+      user: {
+        ...user,
+        [idField]: user[idField] // ⬅️ Ensures frontend sees admin_id or student_id explicitly
       }
-
-      if (results.length === 0) {
-        return res.status(401).json({ error: 'User not found' });
-      }
-
-      const user = results[0];
-      const isMatch = await bcrypt.compare(password, user[passwordField]);
-
-      if (!isMatch) {
-        return res.status(401).json({ error: 'Invalid password' });
-      }
-
-      const token = jwt.sign({ id: user[idField], role }, JWT_SECRET, {
-        expiresIn: '1h',
-      });
-
-      res.json({ token, user });
     });
-  } catch (error) {
-    console.error('Login failed:', error.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+  });
 });
 
 
@@ -981,7 +936,10 @@ app.post('/api/register/admin', async (req, res) => {
 
 /// end improving the admin profile
 
-// 🏁 Start Server
+// 🏁 Start Server (with error handler)
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+}).on('error', (err) => {
+  console.error('❌ Server failed to start:', err);
+});
