@@ -1,4 +1,4 @@
-// 📦 Dependencies 
+// 📦 Dependencies
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2');
@@ -11,18 +11,13 @@ require('dotenv').config();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-
-const {
-  generateApplicationEmail,
-  generateWithdrawalEmail
-} = require('./emailNotifications');
+const { generateApplicationEmail, generateWithdrawalEmail } = require('./emailNotifications');
 
 // 🚀 App Init
 const app = express();
 
 // ✅ Optimized CORS for Render
 const allowedOrigins = ['https://bursary-frontend.onrender.com'];
-
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -42,7 +37,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// 🛠️ Nodemailer Transport
+// 🛠 Nodemailer Transport
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -60,7 +55,7 @@ const sendEmail = async (to, subject, html) => {
   });
 };
 
-// 🛢️ Database Connection with correct Render path to secret file
+// 🛢 Database Connection with correct Render path to secret file
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -68,7 +63,7 @@ const db = mysql.createPool({
   database: process.env.DB_NAME,
   port: process.env.DB_PORT || 3306,
   ssl: {
-    ca: fs.readFileSync('/etc/secrets/DigiCertGlobalRootCA.crt.pem')  // ✅ Updated for Render secret path
+    ca: fs.readFileSync('/etc/secrets/DigiCertGlobalRootCA.crt.pem') // ✅ Updated for Render secret path
   }
 });
 
@@ -77,11 +72,13 @@ app.get('/', (req, res) => {
   res.send('API is running ✅');
 });
 
-
-// ⬇️ Mount All Routes
-const routes = require('./router.js'); // ✅ Explicit .js extension for Render compatibility
-app.use(routes);
-
+// ⬇ Mount All Routes
+try {
+  const routes = require('./router.js');
+  app.use(routes);
+} catch (error) {
+  console.error('Error loading router:', error);
+}
 
 // ✅ Start Server
 const PORT = process.env.PORT || 5000;
